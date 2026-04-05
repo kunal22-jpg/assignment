@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StudyGrid — Assignment Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a0f;
+  --bg2:#12121a;
+  --bg3:#1a1a26;
+  --surface:#1e1e2e;
+  --surface2:#252538;
+  --border:#2e2e45;
+  --border2:#3a3a55;
+  --text:#f0f0ff;
+  --text2:#a0a0c0;
+  --text3:#606080;
+  --acc:#7c6af7;
+  --acc2:#5b52d4;
+  --acc-glow:rgba(124,106,247,0.25);
+  --green:#3ecf8e;
+  --green-bg:rgba(62,207,142,0.12);
+  --amber:#f0a500;
+  --amber-bg:rgba(240,165,0,0.12);
+  --red:#f06060;
+  --card-r:16px;
+  --trans:cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="light"]{
+  --bg:#f4f3ff;
+  --bg2:#eceaff;
+  --bg3:#e2dfff;
+  --surface:#ffffff;
+  --surface2:#f7f6ff;
+  --border:#ddd9ff;
+  --border2:#cbc6f5;
+  --text:#1a1830;
+  --text2:#4a4770;
+  --text3:#9490b8;
+  --acc:#6c5ce7;
+  --acc2:#5a4bd4;
+  --acc-glow:rgba(108,92,231,0.18);
+  --green:#28a870;
+  --green-bg:rgba(40,168,112,0.1);
+  --amber:#c98000;
+  --amber-bg:rgba(201,128,0,0.1);
+  --red:#d44;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background .4s var(--trans),color .3s;
+}
+
+/* ── NOISE TEXTURE ── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.5;
+}
+
+/* ── GRID PATTERN ── */
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(var(--border) 1px,transparent 1px),
+    linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:60px 60px;
+  pointer-events:none;z-index:0;opacity:.3;
+  transition:opacity .4s;
+}
+
+/* ── HERO ── */
+.hero{
+  position:relative;
+  min-height:100vh;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;
+  padding:2rem;
+  overflow:hidden;
+  z-index:1;
+}
+.hero-glow{
+  position:absolute;
+  width:600px;height:600px;
+  background:radial-gradient(circle,var(--acc-glow) 0%,transparent 70%);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  pointer-events:none;
+  animation:pulseGlow 4s ease-in-out infinite;
+}
+@keyframes pulseGlow{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}}
+
+.hero-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--acc);border:1px solid var(--acc);
+  padding:6px 16px;border-radius:40px;
+  margin-bottom:2rem;
+  animation:fadeUp .8s var(--trans) both;
+}
+.hero-tag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--acc);animation:blink 1.5s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.hero-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(2.8rem,8vw,6.5rem);
+  font-weight:800;
+  line-height:.95;
+  letter-spacing:-.03em;
+  margin-bottom:1.5rem;
+  animation:fadeUp .8s .15s var(--trans) both;
+}
+.hero-title span{
+  background:linear-gradient(135deg,var(--acc),#a78bfa,var(--green));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.hero-sub{
+  font-size:1.15rem;font-weight:300;color:var(--text2);
+  max-width:480px;line-height:1.7;
+  margin-bottom:2.5rem;
+  animation:fadeUp .8s .3s var(--trans) both;
+}
+
+.hero-stats{
+  display:flex;gap:2rem;flex-wrap:wrap;justify-content:center;
+  margin-bottom:3rem;
+  animation:fadeUp .8s .45s var(--trans) both;
+}
+.hero-stat{text-align:center}
+.hero-stat-num{
+  font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;
+  color:var(--acc);
+  display:block;
+}
+.hero-stat-lbl{font-size:.8rem;color:var(--text3);text-transform:uppercase;letter-spacing:.1em}
+
+.scroll-cta{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  font-size:.8rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;
+  animation:fadeUp .8s .6s var(--trans) both;
+  cursor:pointer;
+}
+.scroll-arrow{
+  width:28px;height:28px;border:1px solid var(--border2);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  animation:bounce 2s ease infinite;
+  transition:border-color .2s,background .2s;
+}
+.scroll-cta:hover .scroll-arrow{border-color:var(--acc);background:var(--acc-glow)}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── NAVBAR ── */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 2rem;
+  background:transparent;
+  transition:background .3s,border-color .3s,backdrop-filter .3s;
+}
+.nav.scrolled{
+  background:rgba(10,10,15,.85);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);
+}
+[data-theme="light"] .nav.scrolled{background:rgba(244,243,255,.88)}
+
+.nav-logo{
+  font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;
+  letter-spacing:-.02em;color:var(--text);
+}
+.nav-logo span{color:var(--acc)}
+
+.nav-right{display:flex;align-items:center;gap:12px}
+
+.theme-btn{
+  width:42px;height:24px;border-radius:12px;
+  background:var(--surface2);border:1px solid var(--border2);
+  cursor:pointer;position:relative;transition:background .3s;
+  display:flex;align-items:center;padding:2px;
+}
+.theme-btn::after{
+  content:'';
+  width:18px;height:18px;border-radius:50%;
+  background:var(--acc);
+  transition:transform .3s var(--trans);
+}
+[data-theme="light"] .theme-btn::after{transform:translateX(18px)}
+.theme-icon{font-size:12px;position:absolute;right:5px;top:50%;transform:translateY(-50%);pointer-events:none}
+[data-theme="light"] .theme-icon{right:auto;left:5px}
+
+/* ── MAIN CONTENT ── */
+main{position:relative;z-index:1;padding:0 2rem 6rem}
+.container{max-width:1100px;margin:0 auto}
+
+/* ── SECTION ── */
+.section-label{
+  font-family:'Syne',sans-serif;font-size:.75rem;font-weight:600;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--acc);
+  margin-bottom:.75rem;
+  opacity:0;transform:translateY(16px);transition:opacity .6s var(--trans),transform .6s var(--trans);
+}
+.section-label.visible{opacity:1;transform:translateY(0)}
+.section-title{
+  font-family:'Syne',sans-serif;font-size:clamp(1.6rem,4vw,2.4rem);
+  font-weight:800;letter-spacing:-.025em;
+  margin-bottom:2rem;color:var(--text);
+  opacity:0;transform:translateY(20px);
+  transition:opacity .6s .1s var(--trans),transform .6s .1s var(--trans);
+}
+.section-title.visible{opacity:1;transform:translateY(0)}
+
+/* ── OVERALL PROGRESS RING ── */
+.progress-section{padding:5rem 0 4rem}
+.progress-grid{
+  display:grid;grid-template-columns:1fr 2fr;gap:2rem;align-items:center;
+}
+@media(max-width:700px){.progress-grid{grid-template-columns:1fr}}
+
+.ring-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:1rem;
+  opacity:0;transform:scale(.9);
+  transition:opacity .7s var(--trans),transform .7s var(--trans);
+}
+.ring-wrap.visible{opacity:1;transform:scale(1)}
+.ring-svg{position:relative;width:200px;height:200px}
+.ring-bg{fill:none;stroke:var(--surface2);stroke-width:12}
+.ring-fg{fill:none;stroke:url(#ringGrad);stroke-width:12;stroke-linecap:round;
+  stroke-dasharray:565;stroke-dashoffset:565;
+  transform-origin:center;transform:rotate(-90deg);
+  transition:stroke-dashoffset 1.4s cubic-bezier(0.4,0,0.2,1) .3s}
+.ring-text{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.ring-pct{font-family:'Syne',sans-serif;font-size:2.4rem;font-weight:800;color:var(--text)}
+.ring-lbl{font-size:.75rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase}
+
+.mini-stats{display:flex;flex-direction:column;gap:12px}
+.mini-stat-row{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:1rem 1.25rem;
+  display:flex;align-items:center;justify-content:space-between;
+  opacity:0;transform:translateX(24px);
+  transition:opacity .5s var(--trans),transform .5s var(--trans),background .2s,border-color .2s;
+}
+.mini-stat-row.visible{opacity:1;transform:translateX(0)}
+.mini-stat-row:hover{background:var(--surface2);border-color:var(--border2)}
+.msr-left{display:flex;align-items:center;gap:10px}
+.msr-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.msr-name{font-size:.9rem;font-weight:500}
+.msr-bar-wrap{flex:1;height:4px;background:var(--surface2);border-radius:2px;margin:0 1rem;overflow:hidden}
+.msr-bar{height:100%;border-radius:2px;background:var(--acc);transition:width 1s cubic-bezier(.4,0,.2,1) .5s}
+.msr-count{font-size:.8rem;color:var(--text3);white-space:nowrap;font-family:'Syne',sans-serif}
+
+/* ── SUBJECT CARDS ── */
+.subjects-section{padding:3rem 0}
+.subjects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+
+.subj-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r);
+  overflow:hidden;
+  opacity:0;transform:translateY(30px);
+  transition:opacity .6s var(--trans),transform .6s var(--trans),border-color .3s,box-shadow .3s;
+}
+.subj-card.visible{opacity:1;transform:translateY(0)}
+.subj-card:hover{border-color:var(--border2);box-shadow:0 8px 32px rgba(0,0,0,.25)}
+
+.subj-card-head{
+  padding:1.25rem 1.5rem 1rem;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;cursor:pointer;
+  background:var(--surface);transition:background .2s;
+}
+.subj-card-head:hover{background:var(--surface2)}
+.subj-card-icon{
+  width:38px;height:38px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;flex-shrink:0;margin-right:12px;
+}
+.subj-card-info{flex:1}
+.subj-card-name{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:2px}
+.subj-card-type{font-size:.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+.subj-badge{
+  font-size:.7rem;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;
+}
+
+.subj-progress-row{
+  padding:.75rem 1.5rem;
+  display:flex;align-items:center;gap:12px;
+  background:var(--surface);
+}
+.subj-prog-track{flex:1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.subj-prog-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.subj-prog-pct{font-family:'Syne',sans-serif;font-size:.78rem;font-weight:700;color:var(--text2);min-width:32px;text-align:right}
+
+.tasks-container{
+  max-height:0;overflow:hidden;
+  transition:max-height .45s cubic-bezier(.4,0,.2,1);
+}
+.tasks-container.open{max-height:2000px}
+.task-list-inner{padding:.5rem 0}
+
+.task-item{
+  display:flex;align-items:center;gap:12px;
+  padding:.6rem 1.5rem;
+  transition:background .15s;
+  cursor:pointer;
+}
+.task-item:hover{background:var(--surface2)}
+
+.custom-cb{
+  width:20px;height:20px;border-radius:6px;
+  border:1.5px solid var(--border2);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  transition:all .2s var(--trans);
+  background:transparent;
+  position:relative;overflow:hidden;
+}
+.custom-cb::after{
+  content:'';position:absolute;inset:0;
+  background:var(--acc);border-radius:4px;
+  transform:scale(0);transition:transform .2s var(--trans);
+}
+.custom-cb svg{position:relative;z-index:1;opacity:0;transition:opacity .15s .05s;width:11px;height:11px}
+.task-item.checked .custom-cb{border-color:var(--acc)}
+.task-item.checked .custom-cb::after{transform:scale(1)}
+.task-item.checked .custom-cb svg{opacity:1}
+.task-item.checked .task-item-label{text-decoration:line-through;color:var(--text3)}
+
+.task-item-label{font-size:.875rem;color:var(--text2);transition:color .2s,text-decoration .2s;user-select:none}
+
+.subj-card-head-left{display:flex;align-items:center}
+.chevron{
+  transition:transform .35s var(--trans);color:var(--text3);font-size:.9rem;
+  flex-shrink:0;margin-left:8px;
+}
+.subj-card.open .chevron{transform:rotate(180deg)}
+
+/* ── CHART SECTION ── */
+.charts-section{padding:3rem 0}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r);
+  padding:1.5rem;
+  opacity:0;transform:translateY(24px);
+  transition:opacity .6s var(--trans),transform .6s var(--trans);
+}
+.chart-card.visible{opacity:1;transform:translateY(0)}
+.chart-card-title{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:1.25rem}
+.chart-wrap{position:relative;height:260px}
+
+/* ── FLOATING COUNTER ── */
+.floating-counter{
+  position:fixed;bottom:2rem;right:2rem;z-index:50;
+  background:var(--acc);color:#fff;
+  border-radius:16px;padding:.75rem 1.25rem;
+  font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;
+  box-shadow:0 8px 24px var(--acc-glow);
+  transform:translateY(100px);opacity:0;
+  transition:transform .4s var(--trans),opacity .4s;
+  pointer-events:none;
+}
+.floating-counter.show{transform:translateY(0);opacity:1}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:1rem 0}
+
+/* ── CHECKMARK BURST ANIMATION ── */
+@keyframes checkBurst{
+  0%{box-shadow:0 0 0 0 var(--acc-glow)}
+  50%{box-shadow:0 0 0 8px transparent}
+  100%{box-shadow:0 0 0 0 transparent}
+}
+.task-item.just-checked .custom-cb{animation:checkBurst .4s ease}
+
+/* ── SCROLL REVEAL ── */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .65s var(--trans),transform .65s var(--trans)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── FOOTER ── */
+footer{
+  text-align:center;padding:3rem 2rem;
+  font-size:.8rem;color:var(--text3);
+  position:relative;z-index:1;
+  border-top:1px solid var(--border);
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .hero-stats{gap:1.5rem}
+  .nav{padding:.75rem 1rem}
+  main{padding:0 1rem 4rem}
+  .progress-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="navbar">
+  <div class="nav-logo">Study<span>Grid</span></div>
+  <div class="nav-right">
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">
+      <span class="theme-icon" id="themeIcon">☽</span>
+    </button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-tag">
+    <span></span>
+    Academic Year 2024–25
+  </div>
+  <h1 class="hero-title">Track Every<br><span>Assignment</span></h1>
+  <p class="hero-sub">Your personal dashboard for lab work and theory units. Check off tasks, watch progress grow.</p>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="hero-stat-num" id="heroTotal">61</span>
+      <span class="hero-stat-lbl">Total Tasks</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num" id="heroDone">0</span>
+      <span class="hero-stat-lbl">Completed</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num" id="heroLeft">61</span>
+      <span class="hero-stat-lbl">Remaining</span>
+    </div>
+  </div>
+  <div class="scroll-cta" onclick="document.getElementById('progress').scrollIntoView({behavior:'smooth'})">
+    scroll to track
+    <div class="scroll-arrow">↓</div>
+  </div>
+</section>
+
+<main>
+<div class="container">
+
+<!-- PROGRESS SECTION -->
+<section class="progress-section" id="progress">
+  <div class="section-label reveal">Overall progress</div>
+  <div class="section-title reveal">How you're doing</div>
+  <div class="progress-grid">
+    <div class="ring-wrap" id="ringWrap">
+      <div class="ring-svg">
+        <svg viewBox="0 0 200 200" width="200" height="200">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#7c6af7"/>
+              <stop offset="100%" stop-color="#3ecf8e"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-bg" cx="100" cy="100" r="90"/>
+          <circle class="ring-fg" id="ringFg" cx="100" cy="100" r="90"/>
+        </svg>
+        <div class="ring-text">
+          <span class="ring-pct" id="ringPct">0%</span>
+          <span class="ring-lbl">Complete</span>
+        </div>
+      </div>
+    </div>
+    <div class="mini-stats" id="miniStats"></div>
+  </div>
+</section>
+
+<!-- CHARTS -->
+<section class="charts-section" id="chartsSection">
+  <div class="section-label reveal">Analytics</div>
+  <div class="section-title reveal">Progress by subject</div>
+  <div class="charts-grid">
+    <div class="chart-card reveal">
+      <div class="chart-card-title">Lab assignments</div>
+      <div class="chart-wrap"><canvas id="labChart"></canvas></div>
+    </div>
+    <div class="chart-card reveal" style="transition-delay:.12s">
+      <div class="chart-title">Theory units</div>
+      <div class="chart-wrap"><canvas id="theoryChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- LAB SUBJECTS -->
+<section class="subjects-section" id="labSection">
+  <div class="section-label reveal">Laboratory</div>
+  <div class="section-title reveal">Lab assignments</div>
+  <div class="subjects-grid" id="labGrid"></div>
+</section>
+
+<!-- THEORY SUBJECTS -->
+<section class="subjects-section" id="theorySection" style="padding-top:2rem">
+  <div class="section-label reveal">Theory</div>
+  <div class="section-title reveal">Unit tracker</div>
+  <div class="subjects-grid" id="theoryGrid"></div>
+</section>
+
+</div>
+</main>
+
+<footer>
+  Built with pure HTML · CSS · JS &nbsp;·&nbsp; Deployed on GitHub Pages &nbsp;·&nbsp; StudyGrid 2025
+</footer>
+
+<div class="floating-counter" id="floatingCounter"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────
+const SUBJECTS = {
+  lab:[
+    {id:'dbms-lab',name:'DBMS Lab',icon:'🗄️',color:'#7c6af7',count:10},
+    {id:'wdl-lab', name:'WDL Lab', icon:'🌐',color:'#3ecf8e',count:12},
+    {id:'mil-lab', name:'MIL Lab', icon:'🔬',color:'#f0a500',count:10},
+    {id:'mpl-lab', name:'MPL Lab', icon:'⚙️',color:'#e879f9',count:11},
+    {id:'es-lab',  name:'ES Lab',  icon:'💡',color:'#38bdf8',count:12},
+    {id:'edl-lab', name:'EDL Lab', icon:'🔧',color:'#fb923c',count:6},
+  ],
+  theory:[
+    {id:'pm',  name:'PM',   icon:'📋',color:'#7c6af7',count:5},
+    {id:'dbms',name:'DBMS', icon:'🗄️',color:'#3ecf8e',count:5},
+    {id:'mil', name:'MIL',  icon:'🔬',color:'#f0a500',count:5},
+    {id:'com', name:'COM',  icon:'📡',color:'#e879f9',count:5},
+    {id:'dm',  name:'DM',   icon:'📐',color:'#38bdf8',count:5},
+    {id:'iot', name:'IoT',  icon:'📶',color:'#fb923c',count:5},
+  ]
+};
+const TOTAL = [...SUBJECTS.lab,...SUBJECTS.theory].reduce((a,s)=>a+s.count,0);
+
+// ── STATE ─────────────────────────────────────────────────────────
+let state = {};
+function loadState(){
+  try{ state=JSON.parse(localStorage.getItem('studygrid-state')||'{}'); }
+  catch(e){ state={}; }
+}
+function saveState(){ localStorage.setItem('studygrid-state',JSON.stringify(state)); }
+function taskKey(sid,i){ return `${sid}-${i}`; }
+function getDone(subj){ let d=0; for(let i=0;i<subj.count;i++) if(state[taskKey(subj.id,i)]) d++; return d; }
+function getAllDone(){ return [...SUBJECTS.lab,...SUBJECTS.theory].reduce((a,s)=>a+getDone(s),0); }
+
+// ── THEME ─────────────────────────────────────────────────────────
+const themeBtn=document.getElementById('themeBtn');
+const themeIcon=document.getElementById('themeIcon');
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  themeIcon.textContent=t==='dark'?'☽':'☀';
+  localStorage.setItem('sg-theme',t);
+  setTimeout(rebuildCharts,50);
+}
+themeBtn.addEventListener('click',()=>{
+  setTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+});
+const savedTheme=localStorage.getItem('sg-theme')||'dark';
+setTheme(savedTheme);
+
+// ── NAVBAR SCROLL ──────────────────────────────────────────────────
+window.addEventListener('scroll',()=>{
+  document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>60);
+  updateFloatingCounter();
+},{ passive:true });
+
+// ── SCROLL REVEAL ──────────────────────────────────────────────────
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('visible');
+      if(e.target.id==='ringWrap') animateRing();
+      observer.unobserve(e.target);
+    }
+  });
+},{threshold:.15});
+
+function observeAll(){
+  document.querySelectorAll('.reveal,.section-label,.section-title,.subj-card,.chart-card,.mini-stat-row,.ring-wrap')
+    .forEach(el=>observer.observe(el));
+}
+
+// ── RING ANIMATION ─────────────────────────────────────────────────
+let ringAnimated=false;
+function animateRing(){
+  if(ringAnimated)return; ringAnimated=true;
+  updateRing();
+}
+function updateRing(){
+  const done=getAllDone(), pct=TOTAL?done/TOTAL:0;
+  const circumference=2*Math.PI*90;
+  const offset=circumference*(1-pct);
+  document.getElementById('ringFg').style.strokeDashoffset=offset;
+  document.getElementById('ringPct').textContent=Math.round(pct*100)+'%';
+}
+
+// ── HERO STATS ─────────────────────────────────────────────────────
+function updateHeroStats(){
+  const done=getAllDone();
+  document.getElementById('heroDone').textContent=done;
+  document.getElementById('heroLeft').textContent=TOTAL-done;
+}
+
+// ── FLOATING COUNTER ───────────────────────────────────────────────
+function updateFloatingCounter(){
+  const done=getAllDone(), fc=document.getElementById('floatingCounter');
+  fc.textContent=`${done} / ${TOTAL} done`;
+  const show=window.scrollY>window.innerHeight*.5;
+  fc.classList.toggle('show',show);
+}
+
+// ── MINI STATS ─────────────────────────────────────────────────────
+function buildMiniStats(){
+  const el=document.getElementById('miniStats');
+  const all=[...SUBJECTS.lab,...SUBJECTS.theory];
+  el.innerHTML=all.map((s,i)=>{
+    const done=getDone(s), pct=s.count?Math.round(done/s.count*100):0;
+    return `<div class="mini-stat-row" style="transition-delay:${i*.06}s">
+      <div class="msr-left">
+        <div class="msr-dot" style="background:${s.color}"></div>
+        <span class="msr-name">${s.name}</span>
+      </div>
+      <div class="msr-bar-wrap"><div class="msr-bar" style="width:${pct}%;background:${s.color}" id="msb-${s.id}"></div></div>
+      <span class="msr-count" id="msc-${s.id}">${done}/${s.count}</span>
+    </div>`;
+  }).join('');
+  setTimeout(()=>document.querySelectorAll('.mini-stat-row').forEach(el=>observer.observe(el)),10);
+}
+function updateMiniStats(){
+  [...SUBJECTS.lab,...SUBJECTS.theory].forEach(s=>{
+    const done=getDone(s), pct=s.count?Math.round(done/s.count*100):0;
+    const bar=document.getElementById('msb-'+s.id);
+    const cnt=document.getElementById('msc-'+s.id);
+    if(bar) bar.style.width=pct+'%';
+    if(cnt) cnt.textContent=`${done}/${s.count}`;
+  });
+}
+
+// ── SUBJECT CARDS ─────────────────────────────────────────────────
+function buildCard(s,type){
+  const done=getDone(s), pct=s.count?Math.round(done/s.count*100):0;
+  const label=type==='lab'?`Assignment`:`Unit`;
+  const complete=pct===100;
+  const taskItems=Array.from({length:s.count},(_,i)=>{
+    const key=taskKey(s.id,i);
+    const checked=!!state[key];
+    return `<div class="task-item${checked?' checked':''}" id="ti-${key}" onclick="toggleTask('${s.id}',${i},'${type}')">
+      <div class="custom-cb">
+        <svg viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1.5,6 5,9.5 10.5,2.5"/>
+        </svg>
+      </div>
+      <span class="task-item-label">${label} ${i+1}</span>
+    </div>`;
+  }).join('');
+  return `<div class="subj-card" id="card-${s.id}">
+    <div class="subj-card-head" onclick="toggleCard('${s.id}')">
+      <div class="subj-card-head-left">
+        <div class="subj-card-icon" style="background:${s.color}22;font-size:1.2rem">${s.icon}</div>
+        <div class="subj-card-info">
+          <div class="subj-card-name">${s.name}</div>
+          <div class="subj-card-type">${type==='lab'?'Lab — '+s.count+' assignments':'Theory — '+s.count+' units'}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span class="subj-badge" id="badge-${s.id}"
+          style="background:${complete?'var(--green-bg)':'var(--surface2)'};color:${complete?'var(--green)':'var(--text3)'}">
+          ${done}/${s.count}
+        </span>
+        <span class="chevron">▾</span>
+      </div>
+    </div>
+    <div class="subj-progress-row">
+      <div class="subj-prog-track">
+        <div class="subj-prog-fill" id="spf-${s.id}" style="width:${pct}%;background:${s.color}"></div>
+      </div>
+      <span class="subj-prog-pct" id="spp-${s.id}">${pct}%</span>
+    </div>
+    <div class="tasks-container" id="tc-${s.id}">
+      <div class="task-list-inner">${taskItems}</div>
+    </div>
+  </div>`;
+}
+
+function buildGrids(){
+  document.getElementById('labGrid').innerHTML=SUBJECTS.lab.map(s=>buildCard(s,'lab')).join('');
+  document.getElementById('theoryGrid').innerHTML=SUBJECTS.theory.map(s=>buildCard(s,'theory')).join('');
+  setTimeout(()=>document.querySelectorAll('.subj-card').forEach(el=>{
+    el.style.transitionDelay=`${Array.from(el.parentElement.children).indexOf(el)*0.07}s`;
+    observer.observe(el);
+  }),10);
+}
+
+function toggleCard(sid){
+  const card=document.getElementById('card-'+sid);
+  const tc=document.getElementById('tc-'+sid);
+  const isOpen=card.classList.contains('open');
+  card.classList.toggle('open',!isOpen);
+  tc.classList.toggle('open',!isOpen);
+}
+
+function toggleTask(sid,idx,type){
+  const key=taskKey(sid,idx);
+  state[key]=!state[key];
+  saveState();
+  const ti=document.getElementById('ti-'+key);
+  ti.classList.toggle('checked',state[key]);
+  ti.classList.add('just-checked');
+  setTimeout(()=>ti.classList.remove('just-checked'),500);
+
+  const subj=[...SUBJECTS.lab,...SUBJECTS.theory].find(s=>s.id===sid);
+  const done=getDone(subj), pct=subj.count?Math.round(done/subj.count*100):0;
+  const spf=document.getElementById('spf-'+sid);
+  const spp=document.getElementById('spp-'+sid);
+  const badge=document.getElementById('badge-'+sid);
+  if(spf) spf.style.width=pct+'%';
+  if(spp) spp.textContent=pct+'%';
+  if(badge){
+    const complete=pct===100;
+    badge.textContent=`${done}/${subj.count}`;
+    badge.style.background=complete?'var(--green-bg)':'var(--surface2)';
+    badge.style.color=complete?'var(--green)':'var(--text3)';
+  }
+  updateMiniStats();
+  updateHeroStats();
+  updateRing();
+  updateFloatingCounter();
+  updateCharts();
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────
+let labChart, theoryChart;
+function getChartColors(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  return{grid:isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)',
+         tick:isDark?'#606080':'#9490b8'};
+}
+function buildCharts(){
+  const {grid,tick}=getChartColors();
+  const labLabels=SUBJECTS.lab.map(s=>s.name);
+  const labDone=SUBJECTS.lab.map(s=>getDone(s));
+  const labRem=SUBJECTS.lab.map(s=>s.count-getDone(s));
+  const labColors=SUBJECTS.lab.map(s=>s.color);
+
+  labChart=new Chart(document.getElementById('labChart'),{
+    type:'bar',
+    data:{labels:labLabels,datasets:[
+      {label:'Done',data:labDone,backgroundColor:labColors,borderRadius:6,borderSkipped:false},
+      {label:'Remaining',data:labRem,backgroundColor:labColors.map(c=>c+'33'),borderRadius:6,borderSkipped:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{stacked:true,ticks:{color:tick,font:{size:10,family:'DM Sans'}},grid:{color:grid}},
+              y:{stacked:true,ticks:{color:tick,stepSize:1,font:{size:10}},grid:{color:grid}}}}
+  });
+
+  const thLabels=SUBJECTS.theory.map(s=>s.name);
+  const thDone=SUBJECTS.theory.map(s=>getDone(s));
+  const thColors=SUBJECTS.theory.map(s=>s.color);
+
+  theoryChart=new Chart(document.getElementById('theoryChart'),{
+    type:'doughnut',
+    data:{labels:thLabels,datasets:[{data:thDone.map((d,i)=>d||.001),
+      backgroundColor:thColors,borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'bottom',labels:{color:tick,font:{size:10,family:'DM Sans'},
+        boxWidth:10,padding:10}}}}
+  });
+}
+function rebuildCharts(){
+  if(labChart){labChart.destroy();labChart=null;}
+  if(theoryChart){theoryChart.destroy();theoryChart=null;}
+  buildCharts();
+}
+function updateCharts(){
+  if(!labChart||!theoryChart)return;
+  labChart.data.datasets[0].data=SUBJECTS.lab.map(s=>getDone(s));
+  labChart.data.datasets[1].data=SUBJECTS.lab.map(s=>s.count-getDone(s));
+  labChart.update();
+  theoryChart.data.datasets[0].data=SUBJECTS.theory.map(s=>getDone(s)||.001);
+  theoryChart.update();
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+loadState();
+buildMiniStats();
+buildGrids();
+updateHeroStats();
+updateFloatingCounter();
+observeAll();
+setTimeout(buildCharts,200);
+</script>
+</body>
+</html>
